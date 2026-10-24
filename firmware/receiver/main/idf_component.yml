@@ -1,0 +1,6 @@
+## IDF Component Manager Manifest File
+## esp_csi_gain_ctrl is downloaded by the IDF component manager on the first
+## build (needs internet once; cached in managed_components/ afterwards).
+dependencies:
+  idf: ">=4.4.1"
+  esp_csi_gain_ctrl: ">=0.1.4"

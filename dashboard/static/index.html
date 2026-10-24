@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EchoGuard - Sitting and standing tracker</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="topbar no-print">
+    <div class="brand">
+      <p class="brand-name">EchoGuard</p>
+      <p class="brand-sub">Sitting and standing tracker</p>
+    </div>
+    <nav aria-label="Main">
+      <ul class="nav">
+        <li><a href="#today" data-nav="today">Today</a></li>
+        <li><a href="#history" data-nav="history">History</a></li>
+        <li><a href="#health" data-nav="health">Health</a></li>
+        <li><a href="#share" data-nav="share">Share</a></li>
+        <li><a href="#calibrate" data-nav="calibrate">Calibrate</a></li>
+        <li><a href="#sensor" data-nav="sensor">Sensor</a></li>
+      </ul>
+    </nav>
+    <p id="source-pill" class="pill" role="status" aria-live="polite">Connecting...</p>
+  </header>
+
+  <div class="banners no-print">
+    <p id="server-error" class="banner banner-bad" role="alert" hidden>Cannot reach the EchoGuard backend. Is the server still running?</p>
+    <p id="synthetic-banner" class="banner banner-warn" hidden><strong>SYNTHETIC</strong> - simulated data, not real measurements and not evidence of real-world accuracy. Nothing is saved to your history.</p>
+    <p id="replay-banner" class="banner banner-info" hidden><strong>Replay, not saved</strong> - this is a recording being played back; it is not added to your history.</p>
+    <div id="reminder-banner" class="banner banner-remind" role="alert" hidden>
+      <p id="reminder-text">You have been sitting for 30 min. Time to stand up for a minute.</p>
+      <div class="banner-actions">
+        <button type="button" id="reminder-snooze">Snooze 10 min</button>
+        <button type="button" id="notify-enable" class="secondary">Enable desktop notifications</button>
+      </div>
+    </div>
+  </div>
+
+  <main id="main" tabindex="-1">
+    <!-- ============================== Today -->
+    <section id="page-today" class="page" data-page="today" aria-labelledby="today-title">
+      <h1 id="today-title">Today</h1>
+
+      <div class="now card">
+        <p class="label">Right now</p>
+        <p id="now-state" class="now-state state-unknown" aria-live="polite" aria-atomic="true">Unknown</p>
+        <p id="now-reason" class="muted">Waiting for data...</p>
+        <p class="now-meta"><span id="now-streak">-</span> <span class="sep" aria-hidden="true">|</span> Confidence <span id="now-confidence">-</span></p>
+        <p id="now-calibrate-hint" class="hint" hidden>Not calibrated - <a href="#calibrate">calibrate the room</a> to tell sitting from standing.</p>
+      </div>
+
+      <h2>So far today</h2>
+      <div class="tiles">
+        <div class="tile"><p class="tile-label"><span class="swatch swatch-sitting" aria-hidden="true"></span>Sitting today</p><p id="t-sitting" class="tile-value">-</p></div>
+        <div class="tile"><p class="tile-label"><span class="swatch swatch-standing" aria-hidden="true"></span>Standing today</p><p id="t-standing" class="tile-value">-</p></div>
+        <div class="tile"><p class="tile-label"><span class="swatch swatch-moving" aria-hidden="true"></span>Moving today</p><p id="t-moving" class="tile-value">-</p></div>
+        <div class="tile"><p class="tile-label">Upright total</p><p id="t-upright" class="tile-value">-</p></div>
+        <div class="tile"><p class="tile-label">Stand hours</p><p id="t-standhours" class="tile-value">-</p></div>
+        <div class="tile"><p class="tile-label">Sit-to-stand transitions</p><p id="t-transitions" class="tile-value">-</p></div>
+        <div class="tile"><p class="tile-label">Longest sitting bout</p><p id="t-longest" class="tile-value">-</p></div>
+      </div>
+      <p id="upright-note" class="muted small">Upright = standing + moving.</p>
+
+      <h2>By hour</h2>
+      <div class="card">
+        <ul class="legend" aria-label="Chart legend">
+          <li><span class="swatch swatch-sitting" aria-hidden="true"></span>Sitting (minutes, bottom)</li>
+          <li><span class="swatch swatch-upright" aria-hidden="true"></span>Upright: standing + moving (minutes, top)</li>
+        </ul>
+        <canvas id="hourly-chart" width="900" height="240" role="img" aria-label="Minutes sitting and upright for each hour of today">Hourly sitting and upright minutes.</canvas>
+        <p id="hourly-summary" class="muted small"></p>
+      </div>
+
+      <details class="card settings">
+        <summary>Reminder settings</summary>
+        <form id="settings-form" class="form-grid" novalidate>
+          <label for="set-reminder">Remind me after sitting for (minutes)</label>
+          <input id="set-reminder" type="number" min="1" max="180" step="1" required>
+          <label for="set-goal">Daily stand-hour goal</label>
+          <input id="set-goal" type="number" min="1" max="24" step="1" required>
+          <label for="set-break">A stand break counts after (seconds upright)</label>
+          <input id="set-break" type="number" min="10" max="600" step="1" required>
+          <div class="form-actions"><button type="submit">Save settings</button> <span id="settings-msg" class="muted" role="status"></span></div>
+        </form>
+      </details>
+    </section>
+
+    <!-- ============================== History -->
+    <section id="page-history" class="page" data-page="history" aria-labelledby="history-title" hidden>
+      <h1 id="history-title">History</h1>
+      <div class="row">
+        <label for="history-days">Period</label>
+        <select id="history-days">
+          <option value="7" selected>Last 7 days</option>
+          <option value="30">Last 30 days</option>
+        </select>
+      </div>
+      <p id="history-summary" class="muted"></p>
+      <div class="card">
+        <ul class="legend" aria-label="Chart legend">
+          <li><span class="swatch swatch-sitting" aria-hidden="true"></span>Sitting (hours)</li>
+          <li><span class="swatch swatch-upright" aria-hidden="true"></span>Upright (hours)</li>
+        </ul>
+        <canvas id="history-chart" width="900" height="240" role="img" aria-label="Hours sitting and upright per day">Daily sitting and upright hours.</canvas>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <caption class="visually-hidden">Daily sitting and standing totals</caption>
+          <thead><tr><th scope="col">Date</th><th scope="col">Sitting</th><th scope="col">Standing</th><th scope="col">Moving</th><th scope="col">Upright</th><th scope="col">Avg sitting bout</th><th scope="col">Longest bout</th><th scope="col">Transitions</th><th scope="col">Stand hours</th></tr></thead>
+          <tbody id="history-rows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============================== Health -->
+    <section id="page-health" class="page" data-page="health" aria-labelledby="health-title" hidden>
+      <h1 id="health-title">Health information</h1>
+      <p class="muted">General information, not medical advice. This app is not a medical device.</p>
+
+      <h2>Your last 7 days</h2>
+      <div class="tiles">
+        <div class="tile"><p class="tile-label">Average daily sitting time</p><p id="health-avg-sitting" class="tile-value">-</p></div>
+        <div class="tile"><p class="tile-label">Average sitting bout</p><p id="health-avg-bout" class="tile-value">-</p></div>
+        <div class="tile"><p class="tile-label">Hours with a stand break</p><p id="health-break-share" class="tile-value">-</p></div>
+      </div>
+      <p id="health-note" class="muted small">Averages use days with tracked data only. Estimated from Wi-Fi signals; may be wrong.</p>
+
+      <h2>About prolonged sitting</h2>
+      <div class="prose">
+        <p>The World Health Organization's 2020 guidelines on physical activity and sedentary behaviour recommend that adults limit the amount of time they spend being sedentary, and note that replacing sedentary time with physical activity of any intensity, including light intensity, provides health benefits.</p>
+        <p>In a laboratory study, Dunstan and colleagues (2012) compared uninterrupted sitting with sitting broken up by short bouts of light or moderate walking in overweight and obese adults. Breaking up sitting reduced the rise in blood glucose and insulin after meals.</p>
+        <p>This app counts standing and moving together as "upright". Standing still is not the same as physical activity; the studies above concern reducing and interrupting sitting time.</p>
+        <p><strong>Talk to your healthcare provider for advice about your situation.</strong></p>
+      </div>
+
+      <h2>References</h2>
+      <ol class="refs">
+        <li>World Health Organization. WHO guidelines on physical activity and sedentary behaviour. Geneva: World Health Organization; 2020.</li>
+        <li>Dunstan DW, Kingwell BA, Larsen R, et al. Breaking up prolonged sitting reduces postprandial glucose and insulin responses. Diabetes Care. 2012;35(5):976-983.</li>
+      </ol>
+    </section>
+
+    <!-- ============================== Share -->
+    <section id="page-share" class="page" data-page="share" aria-labelledby="share-title" hidden>
+      <h1 id="share-title" class="no-print">Share with a health provider</h1>
+      <div class="no-print">
+        <h2>What is collected</h2>
+        <ul>
+          <li>Only time spent sitting, standing, moving and away, and how you responded to stand reminders.</li>
+          <li>Stored locally on this computer in <code>data/posture.sqlite3</code>. Simulated and replayed data are never saved.</li>
+          <li>No camera, no audio. Nothing is sent anywhere automatically; you decide what to download and share.</li>
+        </ul>
+
+        <h2>Choose a period</h2>
+        <form id="share-form" class="form-grid" novalidate>
+          <label for="share-from">From</label>
+          <input id="share-from" type="date" required>
+          <label for="share-to">To</label>
+          <input id="share-to" type="date" required>
+          <p id="share-error" class="error" role="alert"></p>
+        </form>
+        <div class="row">
+          <a id="share-csv" class="button" href="/api/posture/export?format=csv&amp;days=30" download>Download CSV</a>
+          <a id="share-json" class="button secondary" href="/api/posture/export?format=json&amp;days=30" download>Download JSON</a>
+          <button type="button" id="share-print" class="secondary">Print summary</button>
+        </div>
+      </div>
+
+      <article id="provider-summary" class="card summary" aria-labelledby="summary-title">
+        <h2 id="summary-title">Sitting and standing summary</h2>
+        <p id="summary-period" class="muted">-</p>
+        <p id="summary-synthetic" class="banner banner-warn" hidden>SYNTHETIC simulated data - not real measurements.</p>
+        <dl class="summary-list">
+          <dt>Days with data</dt><dd id="sum-days">-</dd>
+          <dt>Average sitting per day</dt><dd id="sum-sitting">-</dd>
+          <dt>Average upright per day (standing + moving)</dt><dd id="sum-upright">-</dd>
+          <dt>Average sitting bout</dt><dd id="sum-bout">-</dd>
+          <dt>Longest sitting bout</dt><dd id="sum-longest">-</dd>
+          <dt>Sit-to-stand transitions per day</dt><dd id="sum-transitions">-</dd>
+          <dt>Stand hours per day</dt><dd id="sum-standhours">-</dd>
+        </dl>
+        <div class="table-wrap">
+          <table>
+            <caption class="visually-hidden">Daily values for the selected period</caption>
+            <thead><tr><th scope="col">Date</th><th scope="col">Sitting</th><th scope="col">Upright</th><th scope="col">Sitting bouts</th><th scope="col">Longest bout</th><th scope="col">Transitions</th><th scope="col">Stand hours</th></tr></thead>
+            <tbody id="summary-rows"></tbody>
+          </table>
+        </div>
+        <h3>Method</h3>
+        <p class="small">Sitting, standing, moving and away are estimated from changes in Wi-Fi channel state information between two ESP32-S3 boards, using a per-room calibration recorded by the user. No camera or microphone is used. Estimates depend on the room and board placement and may be wrong.</p>
+        <p class="small"><strong>Disclaimer:</strong> Research prototype. Not a medical device. Predictions are not medically validated. This summary is not a diagnosis.</p>
+      </article>
+    </section>
+
+    <!-- ============================== Calibrate -->
+    <section id="page-calibrate" class="page" data-page="calibrate" aria-labelledby="cal-title" hidden>
+      <h1 id="cal-title">Calibrate the room</h1>
+      <p>Calibration teaches the app what your room looks like empty, with you walking, standing still and sitting. It runs by itself after you press Start. You will hear a beep and a spoken instruction at every step.</p>
+
+      <div class="card">
+        <h2>Active calibration</h2>
+        <p id="cal-active">None</p>
+        <div class="row">
+          <label for="cal-stored">Stored calibrations</label>
+          <select id="cal-stored"><option value="">(none)</option></select>
+          <button type="button" id="cal-load" class="secondary">Load</button>
+          <button type="button" id="cal-clear" class="secondary">Clear active</button>
+          <button type="button" id="cal-sim" class="secondary" hidden>Synthetic calibration (simulation only)</button>
+        </div>
+        <p id="cal-active-msg" class="muted" role="status"></p>
+      </div>
+
+      <div id="cal-setup" class="card">
+        <h2>Plan</h2>
+        <form id="cal-form" class="form-grid" novalidate>
+          <label for="cal-placement">Room / placement name</label>
+          <input id="cal-placement" type="text" maxlength="40" value="office" required aria-describedby="cal-placement-help">
+          <p id="cal-placement-help" class="muted small span2">Letters, digits, spaces, '_' or '-'.</p>
+          <label for="cal-lead">Time to leave the room (s)</label>
+          <input id="cal-lead" type="number" min="0" max="60" step="1" value="15">
+          <label for="cal-grace">Time to come back in (s)</label>
+          <input id="cal-grace" type="number" min="0" max="60" step="1" value="10">
+          <label for="cal-transition">Time to change position (s)</label>
+          <input id="cal-transition" type="number" min="0" max="30" step="1" value="5">
+          <div id="cal-durations" class="form-grid span2"></div>
+          <div class="span2 checkbox-row">
+            <input id="cal-speak" type="checkbox" checked>
+            <label for="cal-speak">Speak instructions out loud</label>
+            <button type="button" id="cal-test-sound" class="secondary">Test sound</button>
+          </div>
+        </form>
+        <p id="cal-form-error" class="error" role="alert"></p>
+
+        <div class="table-wrap">
+          <table>
+            <caption>Schedule - total <span id="cal-plan-total">-</span></caption>
+            <thead><tr><th scope="col">At</th><th scope="col">What to do</th><th scope="col">Length</th></tr></thead>
+            <tbody id="cal-plan-rows"></tbody>
+          </table>
+        </div>
+        <div class="row">
+          <button type="button" id="cal-start">Start calibration</button>
+          <span class="muted small">Make sure the sensor is connected (Sensor page) first.</span>
+        </div>
+      </div>
+
+      <div id="cal-run" class="card run" hidden>
+        <h2>Calibration running</h2>
+        <p id="cal-phase-title" class="phase-title" aria-live="assertive" aria-atomic="true">-</p>
+        <p id="cal-countdown" class="countdown" role="timer" aria-live="polite" aria-atomic="true">-</p>
+        <p id="cal-instruction" class="instruction">-</p>
+        <p id="cal-next" class="muted">-</p>
+        <div class="progress" role="progressbar" id="cal-progress" aria-label="Calibration progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="cal-progress-fill" class="progress-fill"></div></div>
+        <p id="cal-progress-text" class="muted small">-</p>
+        <div class="row">
+          <button type="button" id="cal-cancel-step" class="secondary">Stop this run</button>
+        </div>
+      </div>
+
+      <div id="cal-review" class="card" hidden>
+        <h2>Steps</h2>
+        <div class="table-wrap">
+          <table>
+            <caption class="visually-hidden">Calibration step quality</caption>
+            <thead><tr><th scope="col">Step</th><th scope="col">Status</th><th scope="col">Good data</th><th scope="col">Problem</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+            <tbody id="cal-steps-rows"></tbody>
+          </table>
+        </div>
+        <p id="cal-error" class="error" role="alert"></p>
+        <div id="cal-result" hidden>
+          <h3>Result</h3>
+          <p id="cal-selfcheck">-</p>
+          <ul id="cal-warnings" class="warnings"></ul>
+        </div>
+        <div class="row">
+          <button type="button" id="cal-continue" hidden>Continue calibration</button>
+          <button type="button" id="cal-save" hidden>Save calibration</button>
+          <button type="button" id="cal-new" class="secondary" hidden>New calibration</button>
+          <button type="button" id="cal-cancel" class="secondary">Discard</button>
+        </div>
+        <p id="cal-msg" class="muted" role="status"></p>
+      </div>
+    </section>
+
+    <!-- ============================== Sensor -->
+    <section id="page-sensor" class="page" data-page="sensor" aria-labelledby="sensor-title" hidden>
+      <h1 id="sensor-title">Sensor</h1>
+
+      <div class="card">
+        <h2>Data source</h2>
+        <form id="src-serial-form" class="form-grid" novalidate>
+          <label for="src-port">Receiver serial port</label>
+          <div class="row"><select id="src-port"><option value="auto">auto (detect the receiver)</option></select>
+            <button type="button" id="src-refresh" class="secondary">Refresh</button>
+            <button type="submit">Connect</button></div>
+        </form>
+        <form id="src-replay-form" class="form-grid" novalidate>
+          <label for="src-replay-file">Replay file</label>
+          <div class="row"><select id="src-replay-file"><option value="">(none found)</option></select>
+            <button type="submit">Replay</button></div>
+        </form>
+        <form id="src-sim-form" class="form-grid" novalidate>
+          <label for="src-sim-scenario">Simulation (synthetic)</label>
+          <div class="row"><select id="src-sim-scenario"><option value="desk_day">desk_day</option></select>
+            <button type="submit">Start simulation</button></div>
+        </form>
+        <div class="row"><button type="button" id="src-stop" class="secondary">Stop</button></div>
+        <p id="src-msg" class="muted" role="status"></p>
+      </div>
+
+      <div class="card">
+        <h2>Connection</h2>
+        <dl class="summary-list">
+          <dt>Source</dt><dd id="sn-source">-</dd>
+          <dt>Packets per second</dt><dd id="sn-rate">-</dd>
+          <dt>Signal strength (RSSI)</dt><dd id="sn-rssi">-</dd>
+          <dt>Data quality</dt><dd id="sn-quality">-</dd>
+          <dt>Sensor configuration</dt><dd id="sn-config">-</dd>
+          <dt>Calibration</dt><dd id="sn-calibration">-</dd>
+          <dt>Last error</dt><dd id="sn-error">-</dd>
+        </dl>
+      </div>
+
+      <div class="card">
+        <h2>Live motion score</h2>
+        <ul class="legend" aria-label="Chart legend">
+          <li><span class="swatch swatch-accent" aria-hidden="true"></span>Motion score (last 60 s)</li>
+          <li><span class="swatch swatch-line" aria-hidden="true"></span>Dashed lines: stillness and movement thresholds</li>
+        </ul>
+        <canvas id="motion-chart" width="900" height="200" role="img" aria-label="Motion score over the last 60 seconds">Motion score chart.</canvas>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p id="disclaimer">Research prototype. Not a medical device. Predictions are not medically validated. Sitting and standing are estimated from Wi-Fi signals and may be wrong.</p>
+  </footer>
+  <script src="/static/app.js"></script>
+</body>
+</html>

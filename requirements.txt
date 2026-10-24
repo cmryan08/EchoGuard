@@ -1,0 +1,9 @@
+# EchoGuard host software. Exact pins; these match the offline interpreter used
+# for development (miniconda CPython 3.12, macOS arm64) and install on 3.11/3.12.
+# Optional ML training extras live in requirements-ml.txt.
+numpy==2.2.6
+scipy==1.15.1
+pandas==2.2.3
+pyserial==3.5
+flask==3.0.3
+pytest==8.3.5

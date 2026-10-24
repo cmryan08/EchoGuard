@@ -1,0 +1,13 @@
+[project]
+name = "echoguard"
+version = "0.1.0"
+description = "Camera-free sitting / standing time tracker using Wi-Fi CSI from two ESP32-S3 boards (research prototype, not a medical device)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+# Runtime dependencies are pinned in requirements.txt (installed by `make setup`,
+# or reused offline by `make setup-offline`); optional ML extras in requirements-ml.txt.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

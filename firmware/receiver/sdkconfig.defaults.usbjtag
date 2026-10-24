@@ -1,0 +1,14 @@
+# EchoGuard overlay for boards whose only USB port is the chip's native
+# USB-Serial-JTAG (e.g. Seeed Studio XIAO ESP32-S3, many ESP32-C3/C6 mini boards).
+# Without this the console (and therefore the CSI stream) goes to UART0 pins,
+# which are not connected to the USB-C port on those boards.
+#
+# Use together with the base defaults:
+#   idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.usbjtag" set-target esp32s3
+#
+# Only valid on targets that have USB-Serial-JTAG (esp32s3, esp32c3, esp32c6, ...).
+# The classic ESP32 has no USB-Serial-JTAG; do not use this file for it.
+# The baud rate setting is ignored on USB-Serial-JTAG (native USB).
+# CONFIG_ESP_CONSOLE_UART_DEFAULT is not set
+# CONFIG_ESP_CONSOLE_UART_CUSTOM is not set
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y

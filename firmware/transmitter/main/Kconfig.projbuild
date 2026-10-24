@@ -1,0 +1,22 @@
+menu "EchoGuard transmitter"
+
+    config ECHOGUARD_TX_CHANNEL
+        int "Wi-Fi channel (must match the receiver)"
+        range 1 13
+        default 11
+        help
+            Fixed 2.4 GHz channel used for the ESP-NOW broadcast. The receiver
+            must be built with the same ECHOGUARD_RX_CHANNEL. Channel 11 is the
+            official esp-csi example default. HT40 uses the secondary channel
+            below the primary for channels 5..13 and above for channels 1..4.
+
+    config ECHOGUARD_TX_RATE_HZ
+        int "Packet send rate (packets per second)"
+        range 10 200
+        default 100
+        help
+            ESP-NOW broadcast rate. 100 Hz matches the official example and is
+            enough to capture human motion. The effective rate is quantised to
+            the FreeRTOS tick (CONFIG_FREERTOS_HZ=1000 -> 1 ms resolution).
+
+endmenu
