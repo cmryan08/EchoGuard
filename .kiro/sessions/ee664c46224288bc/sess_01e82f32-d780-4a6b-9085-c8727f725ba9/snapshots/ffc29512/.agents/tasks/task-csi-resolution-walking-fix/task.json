@@ -1,0 +1,7 @@
+{
+  "task_id": "task-csi-resolution-walking-fix",
+  "task_description": "Fix 'I was walking around and it said I was sitting' after calibration. Root cause found from a raw capture: the receiver's CSI values are only 0-3 LSB (quantised; most likely the firmware's multiply-then-truncate gain compensation), so motion scores cannot separate walking from stillness, the calibration fell back to high thresholds, and the 3-class posture model forced walking frames into 'sitting'. Fix the firmware output, detect and warn about low CSI resolution, require confirmation for bad calibrations, record calibration raw data, add an offline diagnose tool, and give the posture model a walking class plus an out-of-distribution rule.",
+  "status": "pending",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004"],
+  "blocked_reason": null
+}

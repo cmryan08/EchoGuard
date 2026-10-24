@@ -1,0 +1,10 @@
+# EchoGuard host software. Exact pins, tested target: CPython 3.11 on macOS arm64.
+numpy==2.2.6
+scipy==1.15.3
+pandas==2.2.3
+pyserial==3.5
+streamlit==1.45.1
+plotly==6.1.2
+scikit-learn==1.6.1
+joblib==1.5.1
+pytest==8.3.5

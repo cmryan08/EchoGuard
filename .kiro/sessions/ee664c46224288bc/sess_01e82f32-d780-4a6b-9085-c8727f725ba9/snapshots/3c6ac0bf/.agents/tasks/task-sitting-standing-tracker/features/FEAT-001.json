@@ -1,0 +1,25 @@
+{
+  "id": "FEAT-001",
+  "type": "chore",
+  "description": "Confirm the development baseline before the pivot: the existing .venv works, the test suite and JS syntax check pass, and record the current state of the half-finished calibration timeline edit in backend/calibration.py (a cancelled coder added lead_in_s/grace_s/auto/build_timeline; dashboard/server.py already forwards lead_in_s/grace_s/auto to CalibrationManager.start, but dashboard/static/app.js does not use them). Known defect to record (do NOT fix in this feature, FEAT-002 fixes it): in backend/calibration.py line ~234 the StepData field `t_last: Optional[float] = None` was accidentally appended to the end of the `t0_hint` line's comment, so StepData has no t_last field default.",
+  "status": "completed",
+  "steps": [
+    "cd /Users/christopherryan/Projects/Hackathon; check .venv/bin/python exists (if not: make setup-offline).",
+    "Run `make test` and record the exit code and pass/skip counts (pyproject addopts=-q makes output terse; use `.venv/bin/python -m pytest tests/ -q -rA | tail -5` or `-p no:cacheprovider --tb=short` if a count is needed).",
+    "Run `.venv/bin/python -m compileall -q backend dashboard simulation` and `node --check dashboard/static/app.js`.",
+    "Confirm the StepData t_last defect with `grep -n 't_last: Optional' backend/calibration.py` and note any other inconsistency you see in calibration.py vs tests/test_calibration.py (read only).",
+    "Write the results into this feature's findings field."
+  ],
+  "acceptance_criteria": [
+    "make test exits 0 on the unmodified tree (or failures are listed precisely in findings)",
+    "compileall and node --check exit 0",
+    "findings lists the baseline test counts and the confirmed calibration.py defects"
+  ],
+  "verification": [
+    "make test",
+    ".venv/bin/python -m compileall -q backend dashboard simulation",
+    "node --check dashboard/static/app.js"
+  ],
+  "blocked_reason": null,
+  "findings": "Baseline on the unmodified tree (no source files changed): .venv/bin/python present. `make test` exit 0: 216 passed, 2 skipped (both tests/test_train_rf.py:112 and :121, sklearn not installed). compileall exit 0, `node --check dashboard/static/app.js` exit 0. Git: main, no commits, all files staged as added. CONFIRMED DEFECT 1: backend/calibration.py line 234 reads `t0_hint: Optional[float] = None    # packet time ... previous one    t_last: Optional[float] = None`, so dataclasses.fields(StepData) has no t_last; `StepData('walking', 10.0).t_last` raises AttributeError. It is latent because add_frame sets sd.t_last before anything reads it and elapsed_s/phase() short-circuit on t0 is None, so tests pass. Fix in FEAT-002: move `t_last: Optional[float] = None` onto its own line after t0_hint. OTHER OBSERVATIONS (read only): (2) The new timeline code is complete in calibration.py: MAX_LEAD_IN_S/MAX_GRACE_S=60 (line 104/107), _seconds() validator (110), build_timeline(keys, durations, lead_in_s, grace_s, settle_s) (117-146, returns {phases:[{kind lead_in|grace|step, key, title, cue, start_s, end_s, length_s}], total_s, settle_s}; uses spec.person_present and spec.cue), CalibrationSession(lead_in_s, grace_s, auto) with begin()/_schedule()/tick()/waiting state/planned_keys()/timeline()/phase()/_end_run(), to_dict() exposes auto, lead_in_s, grace_s, settle_s, running, run_elapsed_s, phase, timeline. CalibrationManager.start(placement, durations, lead_in_s, grace_s, auto) (line 858) forwards them; step_start() calls s.begin() (884); the manager loop calls check_timeout (956), which calls tick(). Cosmetic only: a single blank line (not two) separates build_timeline's return from the MIN_OK_FRACTION constants at line 147. (3) tests/test_calibration.py has NO tests for lead_in_s, grace_s, auto, build_timeline, waiting state, phase or timeline; all existing tests use the legacy single-step flow, so the new code is untested. tests/test_dashboard.py also has no lead_in/grace/timeline tests. (4) dashboard/server.py lines 371-373 forward lead_in_s/grace_s/auto from POST /api/calibration/start; docstring at line 23 documents them. dashboard/static/app.js has zero references to lead_in, grace, timeline or phase (UI does not use the timed sequence yet). (5) Note for the timed sequence: with STEPS order empty_baseline, walking, standing_still, sitting the grace period applies only before walking (first person_present step after the empty room); chained steps reuse the previous step's t_last as t0_hint."
+}

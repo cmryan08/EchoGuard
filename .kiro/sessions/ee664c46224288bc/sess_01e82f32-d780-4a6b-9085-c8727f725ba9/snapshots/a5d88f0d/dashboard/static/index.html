@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EchoGuard - Wi-Fi CSI motion sensing</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <div>
+        <h1>EchoGuard</h1>
+        <p class="tagline">Camera-free Wi-Fi CSI motion sensing</p>
+      </div>
+    </div>
+    <div class="topbar-status">
+      <span id="server-state" class="pill pill-muted" role="status" aria-live="polite">Connecting to backend...</span>
+      <span id="source-pill" class="pill pill-muted">No source</span>
+    </div>
+  </header>
+
+  <div id="source-banner" class="banner hidden" role="status" aria-live="polite"></div>
+
+  <main id="main">
+    <!-- Source controls -->
+    <section class="card controls" aria-labelledby="controls-title">
+      <div class="card-head">
+        <h2 id="controls-title">Data source</h2>
+        <div class="tabs" role="tablist" aria-label="Data source type">
+          <button type="button" role="tab" id="tab-serial" aria-selected="true" aria-controls="panel-serial" class="tab active">Live serial</button>
+          <button type="button" role="tab" id="tab-replay" aria-selected="false" aria-controls="panel-replay" class="tab">Replay recording</button>
+        </div>
+      </div>
+      <div id="panel-serial" role="tabpanel" aria-labelledby="tab-serial" class="control-row">
+        <label for="port-select">Serial port</label>
+        <select id="port-select"><option value="auto">auto (detect receiver)</option></select>
+        <button type="button" id="ports-refresh" class="btn btn-ghost">Refresh ports</button>
+        <label for="baud-input">Baud</label>
+        <input id="baud-input" type="number" min="9600" max="3000000" step="1" value="921600" inputmode="numeric">
+        <button type="button" id="serial-connect" class="btn btn-primary">Connect</button>
+      </div>
+      <div id="panel-replay" role="tabpanel" aria-labelledby="tab-replay" class="control-row hidden">
+        <label for="replay-select">File</label>
+        <select id="replay-select"><option value="">(no files found)</option></select>
+        <button type="button" id="replay-refresh" class="btn btn-ghost">Refresh files</button>
+        <label for="replay-speed">Speed</label>
+        <select id="replay-speed">
+          <option value="0.5">0.5x</option>
+          <option value="1" selected>1x</option>
+          <option value="2">2x</option>
+          <option value="5">5x</option>
+          <option value="0">as fast as possible</option>
+        </select>
+        <label class="check"><input id="replay-loop" type="checkbox"> Loop</label>
+        <button type="button" id="replay-start" class="btn btn-primary">Start replay</button>
+      </div>
+      <div class="control-row control-foot">
+        <button type="button" id="source-stop" class="btn btn-danger">Disconnect / stop</button>
+        <span id="control-msg" class="muted" role="status" aria-live="polite"></span>
+      </div>
+    </section>
+
+    <!-- A. Connection status -->
+    <section aria-labelledby="status-title">
+      <h2 id="status-title" class="section-title">Connection status</h2>
+      <div class="grid status-grid">
+        <article class="card stat">
+          <h3>Serial / source</h3>
+          <p class="big" id="conn-state">No source</p>
+          <dl class="kv">
+            <dt>Port / file</dt><dd id="conn-port" class="mono">-</dd>
+            <dt>Reconnects</dt><dd id="conn-reconnects" class="mono">-</dd>
+            <dt>Last error</dt><dd id="conn-error" class="mono wrap">-</dd>
+          </dl>
+        </article>
+        <article class="card stat">
+          <h3>Packet rate</h3>
+          <p class="big mono" id="rate">No data yet</p>
+          <dl class="kv">
+            <dt>CSI packets</dt><dd id="cnt-packets" class="mono">-</dd>
+            <dt>Lines read</dt><dd id="cnt-lines" class="mono">-</dd>
+            <dt>Last packet</dt><dd id="pkt-age" class="mono">-</dd>
+          </dl>
+        </article>
+        <article class="card stat">
+          <h3>Signal</h3>
+          <p class="big mono" id="rssi">No data yet</p>
+          <dl class="kv">
+            <dt>RSSI mean / sd</dt><dd id="rssi-stats" class="mono">-</dd>
+            <dt>Noise floor</dt><dd id="noise-floor" class="mono">-</dd>
+            <dt>Mean amplitude</dt><dd id="mean-amp" class="mono">-</dd>
+          </dl>
+        </article>
+        <article class="card stat">
+          <h3>Errors</h3>
+          <p class="big mono" id="malformed">No data yet</p>
+          <dl class="kv">
+            <dt>Seq gaps</dt><dd id="seq-gaps" class="mono">-</dd>
+            <dt>Duplicates / resets</dt><dd id="seq-dups" class="mono">-</dd>
+            <dt>Reasons</dt><dd id="malformed-reasons" class="mono wrap">-</dd>
+          </dl>
+        </article>
+        <article class="card stat">
+          <h3>Signal quality</h3>
+          <p><span id="quality-badge" class="badge badge-muted">No source</span></p>
+          <ul id="quality-reasons" class="reasons"></ul>
+        </article>
+        <article class="card stat wide">
+          <h3>TX / RX configuration</h3>
+          <dl class="kv kv-cols">
+            <dt>Chip family</dt><dd id="cfg-chip" class="mono">-</dd>
+            <dt>Channel</dt><dd id="cfg-channel" class="mono">-</dd>
+            <dt>Secondary ch.</dt><dd id="cfg-secondary" class="mono">-</dd>
+            <dt>Bandwidth</dt><dd id="cfg-bw" class="mono">-</dd>
+            <dt>CSI len</dt><dd id="cfg-len" class="mono">-</dd>
+            <dt>Subcarriers</dt><dd id="cfg-nsc" class="mono">-</dd>
+            <dt>TX MAC seen</dt><dd id="cfg-mac" class="mono">-</dd>
+            <dt>Calibration</dt><dd id="cfg-calib" class="mono">-</dd>
+            <dt>Device RX stats</dt><dd id="cfg-rxstats" class="mono wrap">-</dd>
+            <dt>Device TX stats</dt><dd id="cfg-txstats" class="mono wrap">-</dd>
+          </dl>
+        </article>
+      </div>
+    </section>
+
+    <!-- C. Motion classification -->
+    <section class="card activity-card" aria-labelledby="activity-title">
+      <h2 id="activity-title">Motion classification</h2>
+      <div class="activity-row">
+        <div id="activity-badge" class="activity act-unknown" role="status" aria-live="polite">Unknown / insufficient data</div>
+        <dl class="kv kv-inline">
+          <dt>Motion score</dt><dd id="motion-score" class="mono">No data yet</dd>
+          <dt>Baseline deviation</dt><dd id="motion-dev" class="mono">-</dd>
+          <dt>Variance</dt><dd id="motion-var" class="mono">-</dd>
+          <dt>Diff energy</dt><dd id="motion-diff" class="mono">-</dd>
+          <dt>Thresholds</dt><dd id="motion-th" class="mono">-</dd>
+        </dl>
+      </div>
+      <ol class="legend-states" aria-label="Activity states">
+        <li><span class="dot act-empty_low"></span>Empty room / low activity</li>
+        <li><span class="dot act-movement"></span>Movement detected</li>
+        <li><span class="dot act-rapid_movement"></span>Rapid movement</li>
+        <li><span class="dot act-potential_fall"></span>Potential fall</li>
+        <li><span class="dot act-unknown"></span>Unknown / insufficient data</li>
+      </ol>
+      <p class="muted small">Heuristic thresholds on signal features. Uncalibrated defaults until a calibration is saved.</p>
+    </section>
+
+    <!-- B. Live CSI visualisation -->
+    <section aria-labelledby="charts-title">
+      <h2 id="charts-title" class="section-title">Live CSI</h2>
+      <div class="grid chart-grid">
+        <article class="card chart wide">
+          <div class="card-head">
+            <h3>Subcarrier amplitude heatmap <span class="muted small">(normalised, newest at right)</span></h3>
+            <div class="legend-scale">
+              <span id="heat-min" class="mono small">-</span>
+              <canvas id="heat-legend" width="160" height="12" aria-hidden="true"></canvas>
+              <span id="heat-max" class="mono small">-</span>
+            </div>
+          </div>
+          <canvas id="heatmap" class="canvas-heat" role="img" aria-label="Scrolling heatmap of CSI subcarrier amplitudes over time"></canvas>
+        </article>
+        <article class="card chart">
+          <h3>Mean amplitude over time</h3>
+          <canvas id="chart-amp" class="canvas-line" role="img" aria-label="Mean CSI amplitude over the last 30 seconds"></canvas>
+        </article>
+        <article class="card chart">
+          <h3>Motion activity score</h3>
+          <canvas id="chart-motion" class="canvas-line" role="img" aria-label="Motion activity score with threshold lines over the last 30 seconds"></canvas>
+        </article>
+        <article class="card chart">
+          <h3>Baseline deviation</h3>
+          <canvas id="chart-dev" class="canvas-line" role="img" aria-label="Deviation from the baseline profile over the last 30 seconds"></canvas>
+        </article>
+        <article class="card chart">
+          <h3>RSSI over time</h3>
+          <canvas id="chart-rssi" class="canvas-line" role="img" aria-label="Received signal strength over the last 30 seconds"></canvas>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p><strong>Research prototype. Not a medical device. Predictions are not medically validated.</strong></p>
+    <p class="muted small">Local only: no camera, no cloud. This dashboard has no authentication; keep it bound to 127.0.0.1.</p>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EchoGuard - Wi-Fi CSI motion sensing</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <div>
+        <h1>EchoGuard</h1>
+        <p class="tagline">Camera-free Wi-Fi CSI motion sensing</p>
+      </div>
+    </div>
+    <div class="topbar-status">
+      <span id="server-state" class="pill pill-muted" role="status" aria-live="polite">Connecting to backend...</span>
+      <span id="source-pill" class="pill pill-muted">No source</span>
+      <span id="calib-pill" class="pill pill-muted" title="Active calibration">Uncalibrated</span>
+      <span id="rec-pill" class="pill pill-bad hidden" role="status" aria-live="polite">REC</span>
+    </div>
+  </header>
+
+  <div id="source-banner" class="banner hidden" role="status" aria-live="polite"></div>
+
+  <main id="main">
+    <!-- Source controls -->
+    <section class="card controls" aria-labelledby="controls-title">
+      <div class="card-head">
+        <h2 id="controls-title">Data source</h2>
+        <div class="tabs" role="tablist" aria-label="Data source, calibration and recording">
+          <button type="button" role="tab" id="tab-serial" aria-selected="true" aria-controls="panel-serial" class="tab active">Live serial</button>
+          <button type="button" role="tab" id="tab-replay" aria-selected="false" aria-controls="panel-replay" class="tab">Replay recording</button>
+          <button type="button" role="tab" id="tab-simulation" aria-selected="false" aria-controls="panel-simulation" class="tab">Simulation</button>
+          <button type="button" role="tab" id="tab-calibration" aria-selected="false" aria-controls="panel-calibration" class="tab">Calibration</button>
+          <button type="button" role="tab" id="tab-record" aria-selected="false" aria-controls="panel-record" class="tab">Record</button>
+        </div>
+      </div>
+      <div id="panel-serial" role="tabpanel" aria-labelledby="tab-serial" class="control-row">
+        <label for="port-select">Serial port</label>
+        <select id="port-select"><option value="auto">auto (detect receiver)</option></select>
+        <button type="button" id="ports-refresh" class="btn btn-ghost">Refresh ports</button>
+        <label for="baud-input">Baud</label>
+        <input id="baud-input" type="number" min="9600" max="3000000" step="1" value="921600" inputmode="numeric">
+        <button type="button" id="serial-connect" class="btn btn-primary">Connect</button>
+      </div>
+      <div id="panel-replay" role="tabpanel" aria-labelledby="tab-replay" class="control-row hidden">
+        <label for="replay-select">File</label>
+        <select id="replay-select"><option value="">(no files found)</option></select>
+        <button type="button" id="replay-refresh" class="btn btn-ghost">Refresh files</button>
+        <label for="replay-speed">Speed</label>
+        <select id="replay-speed">
+          <option value="0.5">0.5x</option>
+          <option value="1" selected>1x</option>
+          <option value="2">2x</option>
+          <option value="5">5x</option>
+          <option value="0">as fast as possible</option>
+        </select>
+        <label class="check"><input id="replay-loop" type="checkbox"> Loop</label>
+        <button type="button" id="replay-start" class="btn btn-primary">Start replay</button>
+        <p class="muted small full">Sessions replay all their takes in order; takes show their label as ground truth. Features are computed on replay time, so 1x keeps them comparable with live data.</p>
+      </div>
+
+      <!-- Simulation (synthetic) -->
+      <div id="panel-simulation" role="tabpanel" aria-labelledby="tab-simulation" class="panel-block hidden">
+        <p class="sim-note">SIMULATED DATA - synthetic, not evidence of real-world accuracy. Uses the same parser, processing, detector and dashboard as live data.</p>
+        <div class="control-row">
+          <label for="sim-scenario">Scenario</label>
+          <select id="sim-scenario">
+            <option value="demo">Scripted demo (all states)</option>
+            <option value="empty_room">Empty room</option>
+            <option value="walking">Walking</option>
+            <option value="sitting">Sitting</option>
+            <option value="rapid_movement">Rapid movement</option>
+            <option value="potential_fall">Potential fall</option>
+          </select>
+          <button type="button" id="sim-start" class="btn btn-primary">Start simulation</button>
+          <button type="button" id="sim-reset" class="btn btn-ghost">Reset parameters</button>
+        </div>
+        <div class="sliders">
+          <div class="slider"><label for="sim-noise">Noise</label><input id="sim-noise" type="range" min="0" max="0.5" step="0.01" value="0.03"><output id="sim-noise-out" for="sim-noise" class="mono">0.03</output></div>
+          <div class="slider"><label for="sim-strength">Motion strength</label><input id="sim-strength" type="range" min="0" max="3" step="0.05" value="1"><output id="sim-strength-out" for="sim-strength" class="mono">1.00</output></div>
+          <div class="slider"><label for="sim-duration">Event duration (s)</label><input id="sim-duration" type="range" min="0.2" max="10" step="0.1" value="1"><output id="sim-duration-out" for="sim-duration" class="mono">1.0</output></div>
+          <div class="slider"><label for="sim-rate">Packet rate (Hz)</label><input id="sim-rate" type="range" min="10" max="200" step="5" value="100"><output id="sim-rate-out" for="sim-rate" class="mono">100</output></div>
+        </div>
+        <p class="muted small">Event duration sets the fall-like burst, the rapid-movement bout (x3) and the sit-down / stand-up transitions (x1.5). Packet rates below 20 Hz are flagged as insufficient data quality. Simulated packets use the TX MAC 02:51:4d:00:00:00 and every recording, calibration and export made from them is marked synthetic.</p>
+      </div>
+
+      <!-- Calibration wizard -->
+      <div id="panel-calibration" role="tabpanel" aria-labelledby="tab-calibration" class="panel-block hidden">
+        <div class="split">
+          <div>
+            <h3>New calibration</h3>
+            <div class="control-row">
+              <label for="calib-placement">Placement</label>
+              <input id="calib-placement" type="text" maxlength="40" value="living-room" autocomplete="off" spellcheck="false">
+              <label for="calib-leadin">Lead-in (s)</label>
+              <input id="calib-leadin" type="number" min="0" max="60" step="1" value="5" inputmode="numeric">
+            </div>
+            <div class="control-row">
+              <label for="dur-empty_baseline">Empty room (15-30 s)</label>
+              <input id="dur-empty_baseline" type="number" min="15" max="30" step="1" value="20" inputmode="numeric">
+              <label for="dur-walking">Walking</label>
+              <input id="dur-walking" type="number" min="5" max="60" step="1" value="15" inputmode="numeric">
+              <label for="dur-standing_still">Standing</label>
+              <input id="dur-standing_still" type="number" min="5" max="60" step="1" value="10" inputmode="numeric">
+              <label for="dur-sitting">Sitting</label>
+              <input id="dur-sitting" type="number" min="5" max="60" step="1" value="10" inputmode="numeric">
+            </div>
+            <div class="control-row">
+              <button type="button" id="calib-start" class="btn btn-primary">Start calibration</button>
+            </div>
+            <p class="muted small">Start the data source first. The calibration is stored for the detected sensor configuration (chip, TX MAC, channel, CSI length) and this placement name, and is loaded automatically when that configuration is seen again.</p>
+          </div>
+          <div>
+            <h3>Saved calibrations</h3>
+            <div class="control-row">
+              <label for="calib-select" class="sr-only">Saved calibration</label>
+              <select id="calib-select"><option value="">(none saved)</option></select>
+              <button type="button" id="calib-refresh" class="btn btn-ghost">Refresh</button>
+            </div>
+            <div class="control-row">
+              <button type="button" id="calib-load" class="btn">Load</button>
+              <button type="button" id="calib-clear" class="btn btn-ghost">Use uncalibrated</button>
+              <button type="button" id="calib-delete" class="btn btn-danger">Delete...</button>
+            </div>
+            <dl class="kv">
+              <dt>Active</dt><dd id="calib-active" class="mono wrap">-</dd>
+              <dt>Auto-load</dt><dd id="calib-auto" class="mono wrap">-</dd>
+            </dl>
+          </div>
+        </div>
+
+        <div id="calib-wizard" class="wizard hidden">
+          <ol id="calib-steps" class="steps" aria-label="Calibration steps"></ol>
+          <div class="step-card">
+            <h3 id="calib-step-title">-</h3>
+            <p id="calib-step-instr" class="instr"></p>
+            <div class="control-row">
+              <button type="button" id="calib-step-start" class="btn btn-primary">Start step</button>
+              <button type="button" id="calib-step-cancel" class="btn btn-ghost">Cancel step</button>
+              <button type="button" id="calib-cancel" class="btn btn-danger">Cancel calibration</button>
+            </div>
+            <div class="progress-row">
+              <progress id="calib-progress" max="1" value="0" aria-label="Step progress"></progress>
+              <span id="calib-progress-text" class="mono small">-</span>
+            </div>
+            <p class="small">Live data quality: <span id="calib-quality" class="badge badge-muted">-</span>
+              <span id="calib-quality-reasons" class="muted"></span></p>
+            <p id="calib-msg" class="msg" role="status" aria-live="polite"></p>
+          </div>
+        </div>
+
+        <div id="calib-results" class="results hidden">
+          <h3>Calibration results</h3>
+          <ul id="calib-warnings" class="warnings"></ul>
+          <dl class="kv kv-cols">
+            <dt>Stillness (low)</dt><dd id="calib-th-low" class="mono">-</dd>
+            <dt>Movement</dt><dd id="calib-th-movement" class="mono">-</dd>
+            <dt>Rapid</dt><dd id="calib-th-rapid" class="mono">-</dd>
+            <dt>Separable</dt><dd id="calib-separable" class="mono">-</dd>
+            <dt>Noise variance</dt><dd id="calib-noise-var" class="mono">-</dd>
+            <dt>Noise diff energy</dt><dd id="calib-noise-diff" class="mono">-</dd>
+            <dt>Sensor</dt><dd id="calib-sensor" class="mono wrap">-</dd>
+            <dt>Data</dt><dd id="calib-synthetic" class="mono">-</dd>
+          </dl>
+          <div class="grid chart-grid">
+            <article class="chart">
+              <h3>Motion score per step <span class="muted small">(calibrated, log scale; box p25-p75, whiskers p5-p95)</span></h3>
+              <canvas id="calib-box" class="canvas-line" role="img" aria-label="Box plot of the motion score for each calibration step with the derived thresholds"></canvas>
+            </article>
+            <article class="chart">
+              <h3>Amplitude profile <span class="muted small">(empty-room mean and std band vs walking)</span></h3>
+              <canvas id="calib-profile" class="canvas-line" role="img" aria-label="Empty room baseline amplitude profile with standard deviation band compared with the walking profile"></canvas>
+            </article>
+          </div>
+          <div class="control-row">
+            <button type="button" id="calib-save" class="btn btn-primary">Save calibration</button>
+            <button type="button" id="calib-recalibrate" class="btn">Recalibrate</button>
+            <span id="calib-saved" class="muted small" role="status" aria-live="polite"></span>
+          </div>
+          <p class="muted small">Preliminary heuristic thresholds from one calibration run. They are not validated detection limits.</p>
+        </div>
+      </div>
+
+      <!-- Labeled recording -->
+      <div id="panel-record" role="tabpanel" aria-labelledby="tab-record" class="panel-block hidden">
+        <div class="split">
+          <div>
+            <h3>Session</h3>
+            <div class="control-row">
+              <label for="rec-placement">Placement</label>
+              <input id="rec-placement" type="text" maxlength="40" value="living-room" autocomplete="off" spellcheck="false">
+              <label for="rec-notes">Notes</label>
+              <input id="rec-notes" type="text" maxlength="1000" autocomplete="off" class="wide-input">
+              <button type="button" id="rec-create" class="btn btn-primary">New session</button>
+            </div>
+            <div class="control-row">
+              <label for="rec-session-select">Existing</label>
+              <select id="rec-session-select"><option value="">(no sessions)</option></select>
+              <button type="button" id="rec-select" class="btn">Select</button>
+              <button type="button" id="rec-sessions-refresh" class="btn btn-ghost">Refresh</button>
+            </div>
+            <dl class="kv">
+              <dt>Current session</dt><dd id="rec-session" class="mono wrap">none</dd>
+              <dt>Source / data</dt><dd id="rec-session-kind" class="mono">-</dd>
+            </dl>
+          </div>
+          <div>
+            <h3>Take</h3>
+            <div class="control-row">
+              <label for="rec-duration">Duration (s, 0 = until stopped)</label>
+              <input id="rec-duration" type="number" min="0" max="3600" step="1" value="10" inputmode="numeric">
+              <label for="rec-countdown">Pre-countdown (s)</label>
+              <input id="rec-countdown" type="number" min="0" max="30" step="1" value="3" inputmode="numeric">
+            </div>
+            <div id="rec-labels" class="label-buttons" role="group" aria-label="Start a labeled take">
+              <button type="button" class="btn label-btn" data-label="empty_room">Empty room</button>
+              <button type="button" class="btn label-btn" data-label="standing_still">Standing still</button>
+              <button type="button" class="btn label-btn" data-label="walking">Walking</button>
+              <button type="button" class="btn label-btn" data-label="sitting">Sitting</button>
+              <button type="button" class="btn label-btn" data-label="lying_down">Lying down</button>
+              <button type="button" class="btn label-btn" data-label="rapid_sitting">Rapid sitting</button>
+              <button type="button" class="btn label-btn" data-label="simulated_fall">Simulated fall</button>
+            </div>
+            <div class="control-row take-live">
+              <button type="button" id="rec-stop" class="btn btn-danger">Stop take</button>
+              <span id="rec-timer" class="big mono" role="timer" aria-live="off">-</span>
+              <span id="rec-packets" class="mono small">-</span>
+            </div>
+            <p id="rec-msg" class="msg" role="status" aria-live="polite"></p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="takes">
+            <caption class="sr-only">Takes in the current session</caption>
+            <thead><tr><th scope="col">#</th><th scope="col">Label</th><th scope="col">Start</th><th scope="col">Duration</th><th scope="col">Packets</th><th scope="col">Stop</th><th scope="col">File</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody id="rec-takes"><tr><td colspan="8" class="muted">No takes yet</td></tr></tbody>
+          </table>
+        </div>
+        <p class="muted small">Every raw serial line is written with host timestamps, parsed metadata and the label to data/recordings/&lt;session&gt;/. For ML evaluation hold out complete sessions, never random packets.</p>
+      </div>
+      <div class="control-row control-foot">
+        <button type="button" id="source-stop" class="btn btn-danger">Disconnect / stop</button>
+        <span id="control-msg" class="muted" role="status" aria-live="polite"></span>
+      </div>
+    </section>
+
+    <!-- A. Connection status -->
+    <section aria-labelledby="status-title">
+      <h2 id="status-title" class="section-title">Connection status</h2>
+      <div class="grid status-grid">
+        <article class="card stat">
+          <h3>Serial / source</h3>
+          <p class="big" id="conn-state">No source</p>
+          <dl class="kv">
+            <dt>Port / file</dt><dd id="conn-port" class="mono">-</dd>
+            <dt>Reconnects</dt><dd id="conn-reconnects" class="mono">-</dd>
+            <dt>Last error</dt><dd id="conn-error" class="mono wrap">-</dd>
+          </dl>
+        </article>
+        <article class="card stat">
+          <h3>Packet rate</h3>
+          <p class="big mono" id="rate">No data yet</p>
+          <dl class="kv">
+            <dt>CSI packets</dt><dd id="cnt-packets" class="mono">-</dd>
+            <dt>Lines read</dt><dd id="cnt-lines" class="mono">-</dd>
+            <dt>Last packet</dt><dd id="pkt-age" class="mono">-</dd>
+          </dl>
+        </article>
+        <article class="card stat">
+          <h3>Signal</h3>
+          <p class="big mono" id="rssi">No data yet</p>
+          <dl class="kv">
+            <dt>RSSI mean / sd</dt><dd id="rssi-stats" class="mono">-</dd>
+            <dt>Noise floor</dt><dd id="noise-floor" class="mono">-</dd>
+            <dt>Mean amplitude</dt><dd id="mean-amp" class="mono">-</dd>
+          </dl>
+        </article>
+        <article class="card stat">
+          <h3>Errors</h3>
+          <p class="big mono" id="malformed">No data yet</p>
+          <dl class="kv">
+            <dt>Seq gaps</dt><dd id="seq-gaps" class="mono">-</dd>
+            <dt>Duplicates / resets</dt><dd id="seq-dups" class="mono">-</dd>
+            <dt>Reasons</dt><dd id="malformed-reasons" class="mono wrap">-</dd>
+          </dl>
+        </article>
+        <article class="card stat">
+          <h3>Signal quality</h3>
+          <p><span id="quality-badge" class="badge badge-muted">No source</span></p>
+          <ul id="quality-reasons" class="reasons"></ul>
+        </article>
+        <article class="card stat wide">
+          <h3>TX / RX configuration</h3>
+          <dl class="kv kv-cols">
+            <dt>Chip family</dt><dd id="cfg-chip" class="mono">-</dd>
+            <dt>Channel</dt><dd id="cfg-channel" class="mono">-</dd>
+            <dt>Secondary ch.</dt><dd id="cfg-secondary" class="mono">-</dd>
+            <dt>Bandwidth</dt><dd id="cfg-bw" class="mono">-</dd>
+            <dt>CSI len</dt><dd id="cfg-len" class="mono">-</dd>
+            <dt>Subcarriers</dt><dd id="cfg-nsc" class="mono">-</dd>
+            <dt>TX MAC seen</dt><dd id="cfg-mac" class="mono">-</dd>
+            <dt>Calibration</dt><dd id="cfg-calib" class="mono">-</dd>
+            <dt>Device RX stats</dt><dd id="cfg-rxstats" class="mono wrap">-</dd>
+            <dt>Device TX stats</dt><dd id="cfg-txstats" class="mono wrap">-</dd>
+          </dl>
+        </article>
+      </div>
+    </section>
+
+    <!-- C. Motion classification -->
+    <section class="card activity-card" aria-labelledby="activity-title">
+      <h2 id="activity-title">Motion classification</h2>
+      <div class="activity-row">
+        <div id="activity-badge" class="activity act-unknown" role="status" aria-live="polite">Unknown / insufficient data</div>
+        <dl class="kv kv-inline">
+          <dt>Motion score</dt><dd id="motion-score" class="mono">No data yet</dd>
+          <dt>Baseline deviation</dt><dd id="motion-dev" class="mono">-</dd>
+          <dt>Variance</dt><dd id="motion-var" class="mono">-</dd>
+          <dt>Diff energy</dt><dd id="motion-diff" class="mono">-</dd>
+          <dt>Thresholds</dt><dd id="motion-th" class="mono">-</dd>
+          <dt>Ground truth</dt><dd id="ground-truth" class="mono">-</dd>
+        </dl>
+      </div>
+      <ol class="legend-states" aria-label="Activity states">
+        <li><span class="dot act-empty_low"></span>Empty room / low activity</li>
+        <li><span class="dot act-movement"></span>Movement detected</li>
+        <li><span class="dot act-rapid_movement"></span>Rapid movement</li>
+        <li><span class="dot act-potential_fall"></span>Potential fall</li>
+        <li><span class="dot act-unknown"></span>Unknown / insufficient data</li>
+      </ol>
+      <p class="muted small">Heuristic thresholds on signal features. Uncalibrated defaults until a calibration is saved or loaded. Ground truth is the label of the replayed take (recordings only).</p>
+    </section>
+
+    <!-- B. Live CSI visualisation -->
+    <section aria-labelledby="charts-title">
+      <h2 id="charts-title" class="section-title">Live CSI</h2>
+      <div class="grid chart-grid">
+        <article class="card chart wide">
+          <div class="card-head">
+            <h3>Subcarrier amplitude heatmap <span class="muted small">(normalised, newest at right)</span></h3>
+            <div class="legend-scale">
+              <span id="heat-min" class="mono small">-</span>
+              <canvas id="heat-legend" width="160" height="12" aria-hidden="true"></canvas>
+              <span id="heat-max" class="mono small">-</span>
+            </div>
+          </div>
+          <canvas id="heatmap" class="canvas-heat" role="img" aria-label="Scrolling heatmap of CSI subcarrier amplitudes over time"></canvas>
+        </article>
+        <article class="card chart">
+          <h3>Mean amplitude over time</h3>
+          <canvas id="chart-amp" class="canvas-line" role="img" aria-label="Mean CSI amplitude over the last 30 seconds"></canvas>
+        </article>
+        <article class="card chart">
+          <h3>Motion activity score</h3>
+          <canvas id="chart-motion" class="canvas-line" role="img" aria-label="Motion activity score with threshold lines over the last 30 seconds"></canvas>
+        </article>
+        <article class="card chart">
+          <h3>Baseline deviation</h3>
+          <canvas id="chart-dev" class="canvas-line" role="img" aria-label="Deviation from the baseline profile over the last 30 seconds"></canvas>
+        </article>
+        <article class="card chart">
+          <h3>RSSI over time</h3>
+          <canvas id="chart-rssi" class="canvas-line" role="img" aria-label="Received signal strength over the last 30 seconds"></canvas>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p><strong>Research prototype. Not a medical device. Predictions are not medically validated.</strong></p>
+    <p class="muted small">Local only: no camera, no cloud. This dashboard has no authentication; keep it bound to 127.0.0.1.</p>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

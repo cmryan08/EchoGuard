@@ -1,0 +1,7 @@
+{
+  "task_id": "task-echoguard-csi-fall-detection",
+  "task_description": "Build EchoGuard, a camera-free Wi-Fi CSI fall detection prototype: ESP-IDF transmitter/receiver firmware adapted from espressif/esp-csi csi_send/csi_recv, a Python backend that parses the official CSI serial format and computes motion features, a dark-mode Streamlit dashboard, guided calibration, labeled session recording and replay, an explainable heuristic fall detector with alerts, a clearly-synthetic simulation mode, optional session-held-out Random Forest training, tests and macOS docs. Milestones executed in the user's order.",
+  "status": "pending",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004"],
+  "blocked_reason": null
+}

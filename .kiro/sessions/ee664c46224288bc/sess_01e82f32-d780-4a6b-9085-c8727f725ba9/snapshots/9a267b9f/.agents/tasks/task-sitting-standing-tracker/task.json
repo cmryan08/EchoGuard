@@ -1,0 +1,13 @@
+{
+  "task_id": "task-sitting-standing-tracker",
+  "task_description": "Pivot EchoGuard from Wi-Fi CSI fall detection to a sitting/standing time tracker web app: finish the timed hands-free room calibration (leave the room, 5 s grace to come back, walk, stand still, sit, with total time), build a per-room sitting-vs-standing posture model from calibration, track sitting/standing/moving time, sitting streaks, stand reminders and stand hours, persist live history locally, export for health providers, and ship a minimal dashboard website (no gradients, system font) with health information.",
+  "status": "completed",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004"],
+  "blocked_reason": null,
+  "verification": {
+    "build": "pass",
+    "tests": "pass",
+    "test_quality": "pass",
+    "summary": "make test exit 0 (2 skipped); compileall and node --check on dashboard/static/*.js pass; no gradient/@font-face/external URLs in static assets. UI tests assert the page structure, element ids used by app.js and the minimal/offline rules; there is no JS test runner, so browser rendering, audio and speech are unverified. Coder smoke-ran a full timed calibration over HTTP on the desk_day simulation (8 phases at expected offsets, total 95 s). Live hardware not verified (sandbox cannot open serial ports)."
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "id": "FEAT-002",
+  "type": "fix",
+  "description": "Root-cause fix in the receiver firmware: stop destroying CSI resolution. The live CSI integers are only 0-3 LSB (36% zeros; see context.json key_patterns). print_csi_item() in firmware/receiver/main/app_main.c prints (int16_t)(g * it->buf[i]) where g = compensate_gain relative to an AGC/FFT gain baseline taken from the first 100 packets after the RX boots (CONFIG_GAIN_CONTROL=1 on ESP32-S3, CONFIG_FORCE_GAIN=0). Multiply-then-truncate with g < 1 collapses the values. The host pipeline normalises every packet by its mean amplitude (backend/processing.py), so a uniform gain factor is removed on the host anyway and the firmware does not need to apply it. Make the compensation configurable (default off: print the raw int8 CSI), expose the gain values on the serial link once per second so the hypothesis can be verified on hardware, and parse/display them on the host.",
+  "status": "pending",
+  "steps": [
+    "firmware/receiver/main/Kconfig.projbuild: add `ECHOGUARD_RX_GAIN_COMPENSATION` (bool, default n; help: when y, multiply each CSI value by esp_csi_gain_ctrl's compensate_gain before printing, as the official example does; off by default because truncating g*value to an integer destroys resolution when g < 1, and the host normalises gain per packet) and `ECHOGUARD_RX_FORCE_GAIN` (bool, default n; help: lock the AGC/FFT gain to the boot-time baseline after 100 packets, may cause packet loss). Optionally add `ECHOGUARD_RX_CSI_SHIFT` (int, range 0..15, default 0; 0 = automatic CSI scaling, 1..15 = wifi_csi_config_t.manu_scale=true with that shift) for the classic-target csi_config branch only, but only if the field names manu_scale/shift exist for esp32s3 in ~/esp/esp-idf/components/esp_wifi/include/esp_wifi_types*.h; check the header before using them.",
+    "firmware/receiver/main/app_main.c: map CONFIG_FORCE_GAIN to CONFIG_ECHOGUARD_RX_FORCE_GAIN; keep CONFIG_GAIN_CONTROL (needed to read agc/fft gain); in print_csi_item use g only when CONFIG_ECHOGUARD_RX_GAIN_COMPENSATION is set, otherwise print it->buf[i] unchanged (same for the C5/C61 12-bit branch). Store the latest agc_gain, fft_gain, compensate_gain and the baseline agc/fft (once known) in statics written by the callback (keep the callback cheap: no printing in the callback). In the printer task's once-per-second block, after EG_RX_STATS, print `EG_RX_GAIN,<uptime_ms>,<agc_gain>,<fft_gain>,<compensate_gain_x1000 as int>,<baseline_agc or -1>,<baseline_fft or -128 if unknown>,<compensation_applied 0|1>,<force_gain 0|1>`. Update the header comment block (list item for the change) and print_banner (gain compensation on/off, force gain on/off, CSI scale).",
+    "Rebuild: `cd firmware/receiver && . $HOME/esp/esp-idf/export.sh && idf.py build`. Do not flash. If sdkconfig needs the new options, let idf.py regenerate them (defaults) and make sure firmware/receiver/sdkconfig.defaults does not need edits; if you add options to sdkconfig.defaults, keep the existing ones.",
+    "backend/csi_parser.py: add an `RxGain` dataclass and teach parse_stats_line to parse EG_RX_GAIN lines (9 fields as above; compensate_gain = value/1000; None for the unknown baseline sentinels); parse_any returns it as kind 'stats'. Older firmware never prints the line, so everything must keep working without it.",
+    "backend/engine.py: keep the latest RxGain (like the existing rx_stats handling in _handle_line) and expose it in snapshot() under config.rx_gain (dict or null), with a derived `compensation_scaled_down` flag when compensation_applied and compensate_gain < 0.9.",
+    "dashboard/static/app.js (+ index.html/style.css if needed): on the Sensor page show AGC gain, FFT gain, compensate gain, and whether the firmware applies it, when config.rx_gain is present; 'not reported (firmware before this change)' otherwise. Follow the existing rendering helpers and CSP rules (no inline scripts/styles).",
+    "Tests: tests/test_csi_parser.py (parse a valid EG_RX_GAIN line, sentinel baselines, malformed field count returns None, parse_any kind 'stats'); tests/test_engine.py (feeding an EG_RX_GAIN line exposes config.rx_gain in the snapshot); a dashboard test if the status JSON shape is asserted there.",
+    "Docs: firmware/README.md config table (new options and defaults), the serial-output section (EG_RX_GAIN format), and a short 'Reflash the receiver' section with the exact commands for the XIAO ESP32-S3 RX (`cd firmware/receiver && idf.py -D SDKCONFIG_DEFAULTS=\"sdkconfig.defaults;sdkconfig.defaults.usbjtag\" build` then `idf.py -p /dev/cu.usbmodem2101 flash`, Ctrl-C the dashboard first since only one program can hold the port). README.md: replace 'No reflash is needed for this version' with an accurate statement (the receiver should be reflashed once to get full-resolution CSI; the transmitter is unchanged)."
+  ],
+  "acceptance_criteria": [
+    "With the default config the receiver prints raw CSI values (no multiplication by compensate_gain) and an EG_RX_GAIN line once per second; the official CSI_DATA line format is otherwise unchanged",
+    "`idf.py build` for firmware/receiver succeeds (or findings documents precisely why it could not be run)",
+    "parse_stats_line parses EG_RX_GAIN; /api/status exposes config.rx_gain; Sensor page renders it; all without breaking older firmware output",
+    "make test passes, including new parser/engine tests"
+  ],
+  "verification": [
+    "make test",
+    "node --check dashboard/static/app.js",
+    "cd firmware/receiver && . $HOME/esp/esp-idf/export.sh && idf.py build"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

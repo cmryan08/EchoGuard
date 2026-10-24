@@ -1,0 +1,22 @@
+{
+  "id": "FEAT-001",
+  "type": "chore",
+  "description": "Confirm the baseline: Python tests green, dashboard JS parses, and the ESP-IDF receiver firmware still builds in this environment (needed for FEAT-002). No code changes.",
+  "status": "completed",
+  "steps": [
+    "Run `make test` from /Users/christopherryan/Projects/Hackathon and record the pass/fail counts in findings.",
+    "Run `node --check dashboard/static/app.js` (and any other dashboard/static/*.js).",
+    "Try the firmware build without flashing: `cd firmware/receiver && . $HOME/esp/esp-idf/export.sh && idf.py build` (ESP-IDF lives at ~/esp/esp-idf, tools in ~/.espressif; managed_components are already downloaded). Record whether it works and how long it takes. If it fails for environment reasons (network, sandbox), record the exact error; do not try to fix the toolchain beyond activating export.sh.",
+    "Do not POST to the running dashboard at http://127.0.0.1:8050 and do not touch data/calibration/*.json."
+  ],
+  "acceptance_criteria": [
+    "findings states the make test result, the node --check result and whether `idf.py build` for firmware/receiver succeeds in this environment"
+  ],
+  "verification": [
+    "make test",
+    "node --check dashboard/static/app.js",
+    "cd firmware/receiver && . $HOME/esp/esp-idf/export.sh && idf.py build"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

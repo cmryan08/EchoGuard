@@ -1,0 +1,13 @@
+{
+  "task_id": "task-echoguard-csi-fall-detection",
+  "task_description": "Build EchoGuard, a camera-free Wi-Fi CSI fall detection prototype: ESP-IDF transmitter/receiver firmware adapted from espressif/esp-csi csi_send/csi_recv, a Python backend that parses the official CSI serial format and computes motion features, a dark-mode local dashboard (Flask + offline canvas UI, because Streamlit could not be installed offline), guided calibration, labeled session recording and replay, an explainable heuristic fall detector with alerts, a clearly-synthetic simulation mode, optional session-held-out Random Forest training, tests and macOS docs. Milestones executed in the user's order.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004"],
+  "blocked_reason": null,
+  "verification": {
+    "build": "pass",
+    "tests": "pass",
+    "test_quality": "pass",
+    "summary": "Architect final pass: compileall backend/dashboard/simulation OK; node --check dashboard/static/app.js OK; make test = 216 passed, 2 skipped (sklearn training tests skip in offline .venv; RF training was exercised by the coder with the opencv_python interpreter). Spot-reviewed test_detector/test_simulation/test_processing/test_calibration: tests drive real detector/processor/engine code paths with generated frames/streams and assert behavior (trigger/no-trigger, criteria, quality gating), so they would fail if the logic were reverted. Not verified: firmware compile (no ESP-IDF), real hardware, browser rendering."
+  }
+}

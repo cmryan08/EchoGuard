@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "1.0.0",
+  "dataModelVersion": 1,
+  "id": "sess_443d475c-0e19-4c85-8749-161293dd5936",
+  "title": "New Session",
+  "agentMode": "vibe",
+  "workspacePaths": [
+    "/Users/christopherryan/Projects/Hackathon"
+  ],
+  "rootPaths": [
+    "/Users/christopherryan/Projects/Hackathon"
+  ],
+  "createdAt": "2026-10-24T21:06:08.586Z",
+  "lastModifiedAt": "2026-10-24T21:06:08.679Z",
+  "workflowLaunch": "when-asked",
+  "semanticReviewEnabled": true,
+  "disableAutoCompaction": false,
+  "ftaEnabled": false,
+  "workflowsEnabled": false,
+  "specPlanEnabled": false,
+  "specWorkflow": "quick",
+  "specSkipClarificationEnabled": true,
+  "memoryConfig": {
+    "mode": "disabled",
+    "reflection": false
+  },
+  "memoryConfigSource": "explicit",
+  "_meta": {
+    "kiro": {
+      "settings": {
+        "workflows": {
+          "enabled": false
+        },
+        "goal": {
+          "enabled": false
+        },
+        "codeIntelligence": {
+          "enabled": true
+        },
+        "knowledge": {
+          "enabled": true
+        },
+        "thinking": {
+          "enabled": true
+        },
+        "largeToolOutputHandler": {
+          "enabled": true
+        },
+        "workflowNotifications": {
+          "enabled": false,
+          "delivery": "steer"
+        },
+        "memory": {
+          "mode": "disabled",
+          "reflection": false
+        },
+        "userMemoryOptIn": {
+          "enabled": false
+        }
+      },
+      "executionTarget": {
+        "kind": "local"
+      }
+    }
+  },
+  "autopilot": true
+}

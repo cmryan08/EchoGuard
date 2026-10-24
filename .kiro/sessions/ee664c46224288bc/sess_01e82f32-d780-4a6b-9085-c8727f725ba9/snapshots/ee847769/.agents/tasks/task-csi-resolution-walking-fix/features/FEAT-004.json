@@ -1,0 +1,26 @@
+{
+  "id": "FEAT-004",
+  "type": "fix",
+  "description": "Stop the posture model from calling walking 'sitting'. PostureClassifier (backend/posture.py) only sees frames whose motion_score is below the movement threshold, and then must pick one of sitting/standing/empty via a softmax, so any frame the motion gate misses (as with the user's non-separable calibration, thresholds movement 6.56 vs live walking scores 1.2-5.1) is forced into a still posture with high confidence (observed sitting p=0.97 while walking). Use the walking profiles that calibration already records as a 'moving' class, and add an out-of-distribution check so a profile that matches no calibrated still posture never becomes sitting/standing/away. Depends on FEAT-003 only for README coherence; code-wise independent.",
+  "status": "pending",
+  "steps": [
+    "backend/posture.py: add class 'moving' (from the calibration step 'walking'): STEP_CLASSES gains 'walking': 'moving', CLASSES = ('sitting', 'standing', 'empty', 'moving'), CLASS_STATES maps 'moving' -> 'moving'. fit_posture_model keeps selecting subcarriers by sitting-vs-standing Fisher score but fits a mean/std for every provided class, including moving. Bump MODEL_FORMAT to 2; models without 'moving' (the user's saved file, format 1) must still validate and classify as before.",
+    "backend/posture.py: out-of-distribution threshold. At fit time compute, for every training profile of the still classes (sitting, standing, empty), its per-subcarrier mean log-likelihood under its own class over the selected subcarriers (block-averaged the same way the live classifier averages, see temporal_self_check/block_average and PostureConfig.posture_window_s; a sensible choice is 2-3 s blocks at frame_rate_hz) and store `ood_min_loglik` (a low percentile, e.g. p1, minus a margin; document the choice). score/classify: expose the per-subcarrier mean LL of the best still class. Models without ood_min_loglik skip the check.",
+    "PostureClassifier._classify / update: if the window classification is 'moving' with confidence >= min_confidence, treat it like a motion-gated moving frame (raw_label 'moving', reason 'posture model: walking-like profile (p=..)', go through the same MOVING_CONFIRM_S logic, clear the still-posture candidate). If the best still class is below ood_min_loglik, raw_label None and reason 'profile does not match any calibrated posture'; do not change a confirmed state into sitting/standing/away because of it, and fall back to 'unknown' after hold_s + posture_window_s like the existing moving->unknown rule. temporal_self_check: include the moving class in per_class/overall; keep the sit_stand pair metric unchanged. quality_warnings: warn when walking is classified as a still posture in the self-check (e.g. moving per-class accuracy < 0.8): 'walking looks like a still posture at this placement'.",
+    "backend/calibration.py: build_posture_model passes the walking profiles (posture.STEP_CLASSES now includes walking); when compute_calibration finds motion not separable but the posture model's moving class self-check is good, say so in the warning text (motion gating unreliable, relying on the posture model's walking class). Make sure the frame hooks and sitting tracker (backend/sitting.py) treat raw 'moving' from the posture model exactly like motion-gated moving (upright time, streak breaking).",
+    "Tests in tests/test_posture.py and tests/test_posture_api.py / tests/test_sitting.py: (a) regression for the reported bug: fit a model from synthetic profiles where walking profiles vary strongly around a different mean, then feed walking-like profiles with motion_score below the movement threshold; before the fix this yields sitting, after it the state becomes 'moving' (never 'sitting'); (b) an out-of-distribution profile (far from every class) never yields sitting/standing/away; (c) normal sitting/standing/empty profiles still classify correctly with hysteresis; (d) a format-1 model without 'moving'/ood_min_loglik (load the user's real file data/calibration/office__classic_1a0000000000_ch11-2_len128.json read-only, or a copy of its posture_model) still validates and classifies; (e) simulation scenario tests (tests/test_simulation.py, desk_day) still pass. Each new test must fail if the corresponding new code is reverted.",
+    "README.md 'How detection works': describe the walking ('moving') class and the 'does not match any calibrated posture' rule; keep wording non-medical and with no accuracy claims."
+  ],
+  "acceptance_criteria": [
+    "With a model containing the moving class, walking-like profiles below the motion threshold produce state 'moving', not 'sitting' (regression test)",
+    "Profiles far from all calibrated classes never produce sitting/standing/away",
+    "Old (format-1) posture models, including the user's saved calibration, still load and classify",
+    "make test passes"
+  ],
+  "verification": [
+    "make test",
+    "node --check dashboard/static/app.js"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

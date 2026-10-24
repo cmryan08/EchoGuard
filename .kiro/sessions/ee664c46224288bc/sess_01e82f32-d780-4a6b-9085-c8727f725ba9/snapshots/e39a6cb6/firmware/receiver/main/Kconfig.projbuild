@@ -1,0 +1,40 @@
+menu "EchoGuard receiver"
+
+    config ECHOGUARD_RX_CHANNEL
+        int "Wi-Fi channel (must match the transmitter)"
+        range 1 13
+        default 11
+        help
+            Must equal ECHOGUARD_TX_CHANNEL of the transmitter. Channel 11 is the
+            official esp-csi example default.
+
+    config ECHOGUARD_RX_LLTF_ONLY
+        bool "Print only the LLTF part of the CSI (first 128 values)"
+        depends on !(IDF_TARGET_ESP32C5 || IDF_TARGET_ESP32C6 || IDF_TARGET_ESP32C61)
+        default y
+        help
+            Classic targets (ESP32/S3/C3) report LLTF (64 subcarriers = 128 int8
+            values) followed by HT-LTF / STBC-HT-LTF for HT packets (up to 384
+            values). Printing everything at 100 Hz exceeds what a 921600 baud UART
+            can carry, so by default only the LLTF part is printed and the 'len'
+            column is set to the number of values actually printed.
+
+    config ECHOGUARD_RX_MAX_CSI_BYTES
+        int "Maximum CSI bytes copied per packet"
+        range 128 612
+        default 612 if IDF_TARGET_ESP32C5 || IDF_TARGET_ESP32C6 || IDF_TARGET_ESP32C61
+        default 384
+        help
+            Size of the per-packet CSI copy in the queue item. Longer CSI buffers
+            are truncated and the printed 'len' reflects the truncated length.
+
+    config ECHOGUARD_RX_QUEUE_LEN
+        int "CSI queue depth (packets)"
+        range 4 128
+        default 32
+        help
+            Number of CSI packets buffered between the Wi-Fi CSI callback and the
+            printer task. When full, packets are dropped and counted in
+            EG_RX_STATS queue_drops.
+
+endmenu

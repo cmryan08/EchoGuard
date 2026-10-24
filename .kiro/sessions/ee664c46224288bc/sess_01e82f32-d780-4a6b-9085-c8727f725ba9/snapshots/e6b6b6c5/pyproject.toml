@@ -1,0 +1,12 @@
+[project]
+name = "echoguard"
+version = "0.1.0"
+description = "Privacy-preserving, camera-free Wi-Fi CSI motion and potential-fall detection prototype (not medically validated)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+# Runtime dependencies are pinned in requirements.txt (installed by `make setup`).
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

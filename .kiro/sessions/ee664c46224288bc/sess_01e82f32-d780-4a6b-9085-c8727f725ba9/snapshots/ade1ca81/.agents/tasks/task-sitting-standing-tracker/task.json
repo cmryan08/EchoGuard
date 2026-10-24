@@ -1,0 +1,7 @@
+{
+  "task_id": "task-sitting-standing-tracker",
+  "task_description": "Pivot EchoGuard from Wi-Fi CSI fall detection to a sitting/standing time tracker web app: finish the timed hands-free room calibration (leave the room, 5 s grace to come back, walk, stand still, sit, with total time), build a per-room sitting-vs-standing posture model from calibration, track sitting/standing/moving time, sitting streaks, stand reminders and stand hours, persist live history locally, export for health providers, and ship a minimal dashboard website (no gradients, system font) with health information.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004"],
+  "blocked_reason": null
+}

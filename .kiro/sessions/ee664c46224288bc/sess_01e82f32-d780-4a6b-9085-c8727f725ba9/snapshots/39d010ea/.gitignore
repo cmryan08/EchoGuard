@@ -1,0 +1,31 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# ESP-IDF build outputs (generated per machine / per target)
+firmware/*/build/
+firmware/*/sdkconfig
+firmware/*/sdkconfig.old
+firmware/*/managed_components/
+firmware/*/dependencies.lock
+firmware/*/.echoguard_target
+
+# Runtime data (keep the directory placeholders)
+data/config.json
+data/config.json.tmp
+data/events.jsonl
+data/events.jsonl.1
+data/recordings/*
+data/calibration/*
+data/exports/*
+data/models/*
+!data/recordings/.gitkeep
+!data/calibration/.gitkeep
+!data/exports/.gitkeep
+!data/models/.gitkeep
+
+# macOS
+.DS_Store

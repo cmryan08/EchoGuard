@@ -1,0 +1,25 @@
+{
+  "id": "FEAT-001",
+  "type": "chore",
+  "description": "Confirm the development baseline before the pivot: the existing .venv works, the test suite and JS syntax check pass, and record the current state of the half-finished calibration timeline edit in backend/calibration.py (a cancelled coder added lead_in_s/grace_s/auto/build_timeline; dashboard/server.py already forwards lead_in_s/grace_s/auto to CalibrationManager.start, but dashboard/static/app.js does not use them). Known defect to record (do NOT fix in this feature, FEAT-002 fixes it): in backend/calibration.py line ~234 the StepData field `t_last: Optional[float] = None` was accidentally appended to the end of the `t0_hint` line's comment, so StepData has no t_last field default.",
+  "status": "pending",
+  "steps": [
+    "cd /Users/christopherryan/Projects/Hackathon; check .venv/bin/python exists (if not: make setup-offline).",
+    "Run `make test` and record the exit code and pass/skip counts (pyproject addopts=-q makes output terse; use `.venv/bin/python -m pytest tests/ -q -rA | tail -5` or `-p no:cacheprovider --tb=short` if a count is needed).",
+    "Run `.venv/bin/python -m compileall -q backend dashboard simulation` and `node --check dashboard/static/app.js`.",
+    "Confirm the StepData t_last defect with `grep -n 't_last: Optional' backend/calibration.py` and note any other inconsistency you see in calibration.py vs tests/test_calibration.py (read only).",
+    "Write the results into this feature's findings field."
+  ],
+  "acceptance_criteria": [
+    "make test exits 0 on the unmodified tree (or failures are listed precisely in findings)",
+    "compileall and node --check exit 0",
+    "findings lists the baseline test counts and the confirmed calibration.py defects"
+  ],
+  "verification": [
+    "make test",
+    ".venv/bin/python -m compileall -q backend dashboard simulation",
+    "node --check dashboard/static/app.js"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

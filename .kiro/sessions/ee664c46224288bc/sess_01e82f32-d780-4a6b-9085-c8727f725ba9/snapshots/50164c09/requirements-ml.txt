@@ -1,0 +1,3 @@
+# Optional: Random Forest training on labeled real recordings (make setup-ml).
+scikit-learn==1.6.1
+joblib==1.5.1

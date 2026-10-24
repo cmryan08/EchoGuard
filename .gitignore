@@ -30,6 +30,3 @@ data/posture.sqlite3*
 
 # macOS
 .DS_Store
-
-# Local agent task notes
-.agents/

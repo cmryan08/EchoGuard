@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "1.0.0",
+  "dataModelVersion": 1,
+  "id": "sess_01e82f32-d780-4a6b-9085-c8727f725ba9",
+  "title": "Build EchoGuard CSI fall detection",
+  "agentMode": "autonomous",
+  "workspacePaths": [
+    "/Users/christopherryan/Projects/Hackathon"
+  ],
+  "rootPaths": [
+    "/Users/christopherryan/Projects/Hackathon"
+  ],
+  "createdAt": "2026-10-24T16:36:44.621Z",
+  "lastModifiedAt": "2026-10-24T23:25:36.523Z",
+  "modelId": "claude-opus-5.5",
+  "autopilot": true,
+  "workflowLaunch": "when-asked",
+  "effortLevel": "medium",
+  "contextSnapshotModelDisplay": {
+    "modelId": "claude-opus-5.5",
+    "display": "claude-opus-5.5"
+  },
+  "semanticReviewEnabled": true,
+  "disableAutoCompaction": false,
+  "ftaEnabled": false,
+  "workflowsEnabled": false,
+  "specPlanEnabled": false,
+  "specWorkflow": "quick",
+  "specSkipClarificationEnabled": true,
+  "memoryConfig": {
+    "mode": "disabled",
+    "reflection": false
+  },
+  "memoryConfigSource": "explicit",
+  "description": "Inspecting the local environment, ESP-IDF, Python, and connected serial devices.",
+  "status": "idle",
+  "_meta": {
+    "kiro": {
+      "settings": {
+        "workflows": {
+          "enabled": false
+        },
+        "goal": {
+          "enabled": false
+        },
+        "codeIntelligence": {
+          "enabled": true
+        },
+        "knowledge": {
+          "enabled": true
+        },
+        "thinking": {
+          "enabled": true
+        },
+        "largeToolOutputHandler": {
+          "enabled": true
+        },
+        "workflowNotifications": {
+          "enabled": false,
+          "delivery": "steer"
+        },
+        "memory": {
+          "mode": "disabled",
+          "reflection": false
+        },
+        "userMemoryOptIn": {
+          "enabled": false
+        }
+      },
+      "executionTarget": {
+        "kind": "local"
+      }
+    }
+  }
+}
